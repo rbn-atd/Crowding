@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Tube Crowding Viewer</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+        <script type="text/javascript">
+            //GENERATING URL FOR API AND QUERYING IT
+            const generateURL = () => {
+
+                    //2 const variables below extract the values inside the dropdowns by finding the ids in the document body
+                    const naptan = $("#naptan").val();
+                    const dayOfWeek = $("#dayOfWeek").val();
+
+                    //jquery ajax used to query the API
+                    $.ajax({
+                        url: `https://api.tfl.gov.uk/crowding/${naptan}/${dayOfWeek}`, //url sent to the API with the extracted drop down data
+                        headers:{'app_key': '45cbf3b478c942bab5a7d4f6b96e82a0'}, //my primary key is passed in as a header to allow access and use of the API
+                        success: displayData //following a successful query, displayData is ran to now generate the tables using the response data
+                    });
+        
+            }
+            // catches the API response and formats the response data into a bar chart and table
+            const displayData = response => {   
+
+                //GENERATING AM AND PM SPANS
+                //Extracts span ids from the document body and sets strings containing am and pm peak times in them,
+                //am and pm times being correct to the station and day selection from the user
+                document.getElementById("amSpan").textContent = "AM Peak: " + response.amPeakTimeBand;
+                document.getElementById("pmSpan").textContent = "PM Peak: " + response.pmPeakTimeBand;
+
+
+                //GENERATING TABLE
+                //stores the timeBands array from the API response data into a variable
+                timeBandArray = response.timeBands;
+
+                //string variable which contains table row <tr> and table headings <th> for the data that will be displayed
+                tableString = '<tr><th> Time Band / Crowding Percentage </th</tr>';
+                //Iterates through the timeBandArray and extracts the individual parts of data, time band and percentage
+                //from the sublists in the array and formats each pair of data as a new row for the table,
+                //each line is concatenated onto the tableString variable
+                for(let i=0; i<timeBandArray.length; i++){ 
+                    tableString += '<tr>'+(timeBandArray[i].timeBand) +' / '+ Math.round(timeBandArray[i].percentageOfBaseLine*100)+'</tr>';
+                }                                                             //percentage multiplied by 100 to be represented as whole number
+
+                //the tableText is inserted into the table body's innerHTML, formatted correctly according to the <tr> and <th> tags inside the string
+                document.getElementById("tableBody").innerHTML= tableString;
+
+
+                //GENERATING BAR CHART
+                const labels = []; // Initialise array that will contain the labels to be put on the x-axis
+                const crowding = [];// Initialise array that will contain the percentage data that will be represented on the bar chart
+
+                //Iterates through timeBandArray and extracts all the timeBands into the array 'labels
+                for(let j=0;j<timeBandArray.length; j++){''
+                    labels.push(timeBandArray[j].timeBand);
+                }
+
+                //Iterates through timeBandArray and extracts all the percentage values into the array 'crowding'
+                for(let k=0; k<timeBandArray.length; k++){   
+                    crowding.push(Math.round(timeBandArray[k].percentageOfBaseLine*100) );
+                }
+
+                const data = {
+                    labels: labels, //labels on the x-axis will be each time band inside the timeBandArray e.g. (7:00-7:15)
+                    datasets:[{
+                        label: "Crowding percentage",//label to give context to what the bars actually mean
+                        data:crowding, //data inserted from the crowding array which contains all the percentage data from the response
+                        borderWidth:1,// options below this are for formatting the way the bars look
+                        backgroundColor: 'rgba(45, 45, 36, 1)',
+                        borderColor: 'rgba(126, 126, 126, 0.5)' 
+                    }]
+                };
+
+                const config = {
+                    type: 'bar', //specifies what type of chart to create
+                    data: data, //uses data variable above which contains all the labels and bar data required to be displayed on the barchart
+                    options: {
+                        scales: {
+                        y: {
+                            beginAtZero: true, 
+                            suggestedMax: 100 //the maximum height of the y-axis is set to 100 (as per the specification)
+                        }
+                        }
+                    },
+                    };
+                
+                
+                const barChartZone = document.getElementById('chartCanvas').getContext('2d'); //finds the canvas element id in the document body and stores it in a variable
+                let chartStatus = Chart.getChart('chartCanvas'); //stores the bar chart currently inside the canvas element (if there is none then it stores undefined)
+
+                //if the canvas element contains a chart (so the chartStatus variable is not undefined) then the existing chart is destroyed before creating a new chart
+                if (chartStatus != undefined) { 
+                    chartStatus.destroy();
+                }
+                //a new bar chart is created inside the canvas element taking parameters:
+                //barChartZone: element to create the new bar chart
+                //config: contains all the labels, bar chart data and optional info to format the chart
+                new Chart(barChartZone, config);
+            }                      
+        </script>
+    </head>
+
+    <body>
+        <div>
+            <h1>Tube Crowding Info Viewer</h1>
+        
+            <label for="naptan">Select tube station:</label>
+            <!-- select element to show drop down data for the user -->
+            <select id="naptan">
+                <!-- Station name is what is showed to the user, but the actual value (the naptan code) is hidden to the user-->
+                <!-- the value is the data the will actually be extracted and sent to the API -->
+                <option value="940GZZLUPAC">Paddington</option>
+                <option value="940GZZLUKSX">King's Cross St Pancras</option>
+                <option value="940GZZLUEUS">Euston</option>
+                <option value="940GZZLUWLO">Waterloo</option>
+                <option value="940GZZLULNB">London Bridge</option>
+                <option value="940GZZLULVT">Liverpool Street</option>
+            </select>
+
+            <!--day options with values in the appropriate syntax for url construction -->
+            <label for="dayOfWeek">Select a day:</label>
+            <!-- Full name of day is shown to user whilst the actual value sent to the API is the first 3 letters of the day (correct format according to the API) -->
+            <select id="dayOfWeek">
+                <option value="mon">Monday</option>
+                <option value="tue">Tuesday</option>
+                <option value="wed">Wednesday</option>
+                <option value="thu">Thursday</option>
+                <option value="fri">Friday</option>
+                <option value="sat">Saturday</option>
+                <option value="sun">Sunday</option>
+            </select>
+            <!-- when the button is clicked, the onclick function generateURL will create the API url according to the user drop down selections -->
+            <button type="button" onclick="generateURL()">View crowding info</button>
+            <div>
+                <div> 
+                    <!-- empty canvas element to insert a bar chart into -->
+                    <canvas id="chartCanvas" height="100"></canvas><br>
+                </div>
+                <div> 
+                    <!-- empty span element to insert peak am and pm times to -->
+                    <span id="amSpan"></span>
+                </div>
+                <div>
+                    <span id="pmSpan"></span>
+                </div>
+            </div>
+            <h2> Table of Crowding </h2>
+            <div>
+                <!--Empty table element to be populated as the user clicks the button element -->
+                <table>
+                    <tbody id="tableBody">
+                    </tbody>    
+                </table>
+            </div>
+        </div>
+    </body>
+</html>
